@@ -1,8 +1,13 @@
 import re
 import string
-
+from tinydb import TinyDB, where, table
+from pathlib import Path
+from typing import List
+# from tinydb.queries import where
 
 class User:
+
+    DB = TinyDB(Path(__file__).resolve().parent / 'db.json', indent=4 )
     
     def __init__(self, first_name: str, last_name:str, phone_number: str="", address: str=""):
         self.first_name = first_name
@@ -20,8 +25,12 @@ class User:
     def full_name(self):
         return f"{self.first_name} {self.last_name}"
 
+    @property
+    def db_instance(self):
+        return User.DB.get((where('first_name')== self.first_name) & (where('last_name') == self.last_name))
 
-    def _check(self):
+
+    def _checks(self):
         self._check_phone_number()
         self._check_names()
 
@@ -42,20 +51,42 @@ class User:
                 raise ValueError(f"Nom invalide {self.full_name}.")
 
 
-if __name__ == "__main__":
-    pass
+    def exists(self):
+        return bool(self.db_instance)
+
+
+    def delete(self) -> List[int]:
+        if self.exists():
+            return User.DB.remove(doc_ids=[self.db_instance.doc_id])
+        return []
+
+
+    def save(self, validate_data: bool=False)-> int:
+        if validate_data:
+            self._checks()
+
+        return User.DB.insert(self.__dict__)
+
+
+def get_all_users():
+    return [User(**user) for user in User.DB.all()]
     
+        
+
+if __name__ == "__main__":
+    odette = User("Odette", "Meunier")
+    print(odette.db_instance.doc_id)
+
 
     # from faker import Faker
 
     # fake = Faker(locale="fr_FR")
-
-    
-    # user = User(first_name = fake.first_name(),
+    # for _ in range(10):
+    #     user = User(first_name = fake.first_name(),
     #             last_name=fake.last_name(),
-    #             phone_number="5468546547",
+    #             phone_number=fake.phone_number(),
     #             address=fake.address())
 
-    # user._check_phone_number()
-
-    # print("-" * 10)
+   
+    #     print(user.save())
+    #     print("-" * 10)
